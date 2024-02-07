@@ -97,10 +97,19 @@ def main_worker(gpu, args):
     torch.backends.cudnn.benchmark = True
 
     #data augmentation and split
+
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
     transform = Transform(args, local_crops_number=args.local_crops_number)
     dataset = dataset_HED(args.data, split='train+unlabeled', download=False,
         transform=transform
     )
+
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
+  
     sampler = torch.utils.data.distributed.DistributedSampler(dataset)
     assert args.batch_size % args.world_size == 0
     per_device_batch_size = args.batch_size // args.world_size
@@ -153,6 +162,11 @@ def main_worker(gpu, args):
     acc1, acc5 = torch.zeros(1), torch.zeros(1)
     for epoch in range(start_epoch, args.epochs):
         sampler.set_epoch(epoch)
+
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
+      
         for step, (y1, y2, labels) in enumerate(loader, start=epoch * len(loader)):
             y1 = y1.cuda(gpu, non_blocking=True)
             y2 = y2.cuda(gpu, non_blocking=True)
@@ -161,7 +175,11 @@ def main_worker(gpu, args):
             optimizer.zero_grad()
             with torch.cuda.amp.autocast():
                 ssl_loss, cls_loss, z, cls_pred = model(y1, y2, labels)
-                
+
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
+          
             labels = labels[labels!=-1]
             scaler.scale(ssl_loss+cls_loss).backward()
             scaler.step(optimizer)
@@ -244,7 +262,9 @@ def handle_sigusr1(signum, frame):
 
 def handle_sigterm(signum, frame):
     pass
-
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
 class dataset_HED(torchvision.datasets.STL10):
     base_folder_hed = "stl10_hed_npy/"
 
@@ -281,7 +301,7 @@ class SimSiam(nn.Module):
         self.backbone.fc = nn.Identity()
         self.backbone2 = copy.deepcopy(self.backbone)
         self.backbone2.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-
+      
         # projector
         sizes = [512] + list(map(int, args.projector.split('-')))
         layers = []
@@ -295,6 +315,10 @@ class SimSiam(nn.Module):
             layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False))        
         self.projector = nn.Sequential(*layers)
         self.projector2 = copy.deepcopy(self.projector)
+
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
         
         # predictor
         sizes = [sizes[-1]] + list(map(int, args.predictor.split('-')))
@@ -315,7 +339,10 @@ class SimSiam(nn.Module):
         self.loss = lambda x,y: -cossim(x,y).mean()
         self.ce = nn.CrossEntropyLoss()
 
-    
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
+  
     def compute_losses(self, ps, zs):
         # SSL Losses
         ssl_loss = torch.add(torch.mul(self.loss(ps[0], zs[1].detach()), 0.5), torch.mul(self.loss(ps[1], zs[0].detach()), 0.5))
@@ -347,6 +374,9 @@ class SimSiam(nn.Module):
 
         return ssl_loss, cls_loss, zs[0], cls_pred
 
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
 
 class LARS(optim.Optimizer):
     def __init__(self, params, lr, weight_decay=0, momentum=0.9, eta=0.001,
@@ -442,6 +472,9 @@ class Solarization(object):
         else:
             return img
 
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
 
 class Transform:
     def __init__(self, args, global_crop_scale=(0.08,1.0), local_crops_scale=(0.05, 0.4), local_crops_number=0):
@@ -489,7 +522,10 @@ class Transform:
 
     def __call__(self, x, x_hed):
         return self.global_transform(x), self.global_transform_hed(x_hed)
-
+      
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
 
 if __name__ == '__main__':
     main()
