@@ -82,8 +82,15 @@ def main_worker(gpu, args):
     torch.cuda.set_device(gpu)
     torch.backends.cudnn.benchmark = True
 
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
     model = models.resnet18(num_classes=10).cuda(gpu)
     # model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False).cuda(gpu)
+
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
     state_dict = torch.load(args.pretrained, map_location='cpu')
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
     assert missing_keys == ['fc.weight', 'fc.bias'] and unexpected_keys == []
@@ -125,6 +132,11 @@ def main_worker(gpu, args):
     # Data loading code
     # traindir = args.data / 'train'
     # valdir = args.data / 'val'
+
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
+  
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
@@ -173,6 +185,10 @@ def main_worker(gpu, args):
     train_loader = MultiEpochsDataLoader(train_dataset_HED, sampler=train_sampler, **kwargs)
     val_loader = MultiEpochsDataLoader(test_dataset_HED, **kwargs)
 
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
+  
     start_time = time.time()
     for epoch in range(start_epoch, args.epochs):
         # train
@@ -283,6 +299,10 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
+#######################################################################
+### Section modified by Achille Rieu - start
+#######################################################################
+
 class dataset_HED(torchvision.datasets.STL10):
     base_folder_hed = "stl10_hed_npy/"
 
@@ -315,6 +335,10 @@ class dataset_HED(torchvision.datasets.STL10):
             target = self.target_transform(target)
 
         return (img_hed, target)
+
+#######################################################################
+### Section modified by Achille Rieu - end
+#######################################################################
 
 class MultiEpochsDataLoader(torch.utils.data.DataLoader):
 
